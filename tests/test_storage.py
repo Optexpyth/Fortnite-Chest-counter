@@ -1,6 +1,6 @@
 import json
 
-from chest_counter.config import DEFAULT_CONFIG, load_config
+from chest_counter.config import DEFAULT_CONFIG, clamp_scale, format_number, load_config
 from chest_counter.storage import ChestStats
 
 
@@ -55,5 +55,33 @@ def test_config_merges_defaults(tmp_path):
 
 
 def test_default_hotkeys():
-    assert DEFAULT_CONFIG["hotkeys"]["increment"] == "´"
-    assert DEFAULT_CONFIG["hotkeys"]["decrement"] == "ß"
+    assert DEFAULT_CONFIG["hotkeys"]["increment"] == "f6"
+    assert DEFAULT_CONFIG["hotkeys"]["decrement"] == "f7"
+    assert DEFAULT_CONFIG["hotkeys"]["set_value"] == "f8"
+
+
+def test_old_hotkeys_are_migrated(tmp_path):
+    path = tmp_path / "config.json"
+    path.write_text(json.dumps({
+        "hotkeys": {"increment": "´", "decrement": "ß", "set_value": "f6", "calibrate": "f1"},
+        "overlay": {"x": 300, "y": 200},
+    }))
+    config = load_config(path)
+    assert config["hotkeys"]["increment"] == "f6"
+    assert config["hotkeys"]["decrement"] == "f7"
+    assert config["hotkeys"]["set_value"] == "f8"
+    assert config["hotkeys"]["calibrate"] == "f1"  # eigene Änderung bleibt
+    assert config["overlay"]["x"] == 300 and config["overlay"]["scale"] == 1.0
+    # zweites Laden: nichts wird erneut verändert
+    saved = json.loads(path.read_text())
+    assert saved["config_version"] == DEFAULT_CONFIG["config_version"]
+    saved["hotkeys"]["increment"] = "´"
+    path.write_text(json.dumps(saved))
+    assert load_config(path)["hotkeys"]["increment"] == "´"
+
+
+def test_clamp_scale_and_format():
+    assert clamp_scale(0.1) == 0.5
+    assert clamp_scale(9) == 3.0
+    assert clamp_scale(1.234) == 1.23
+    assert format_number(1234567) == "1.234.567"

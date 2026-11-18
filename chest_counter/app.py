@@ -43,12 +43,13 @@ class DetectionWorker(threading.Thread):
             debounce_frames=int(self.cfg["debounce_frames"]),
         )
 
-    def status_text(self) -> str:
+    def status(self) -> tuple[str, str]:
+        """(Art, Text) für das Overlay: 'ok' zeigt nur einen grünen Punkt."""
         if not self.enabled.is_set():
-            return "⏸ Auto-Erkennung pausiert"
+            return "paused", "Auto-Erkennung pausiert (F11)"
         if len(self.matcher) == 0:
-            return "⚠ Keine Vorlage – an einer Truhe F9 drücken"
-        return "● Auto-Erkennung aktiv"
+            return "warn", "Keine Vorlage – an einer Truhe F9 drücken"
+        return "ok", "Auto-Erkennung aktiv"
 
     def _calibrate(self, capture, threshold: int) -> None:
         binary = preprocess(capture.grab(), threshold)
@@ -60,7 +61,7 @@ class DetectionWorker(threading.Thread):
         self.matcher.add(template)
         log.info("Neue Vorlage gespeichert: %s (%dx%d)", path, template.shape[1], template.shape[0])
         self.events.put(("toast", f"Vorlage gespeichert ({path.name})"))
-        self.events.put(("status", self.status_text()))
+        self.events.put(("status", *self.status()))
 
     def run(self) -> None:
         from .capture import RegionCapture
@@ -71,7 +72,7 @@ class DetectionWorker(threading.Thread):
             key_down = make_key_checker(self.interact_key)
         except Exception as exc:  # noqa: BLE001
             log.exception("Erkennung konnte nicht gestartet werden")
-            self.events.put(("status", f"⚠ Erkennung aus: {exc}"))
+            self.events.put(("status", "warn", f"Erkennung aus: {exc}"))
             return
 
         threshold = int(self.cfg["brightness_threshold"])
@@ -125,16 +126,16 @@ class App:
             self.detector.enabled.clear()
         else:
             self.detector.enabled.set()
-        self.events.put(("status", self.detector.status_text()))
+        self.events.put(("status", *self.detector.status()))
 
     def _calibrate(self) -> None:
         self.detector.calibrate_request.set()
 
     # ---------- UI-Thread ----------
-    def _save_position(self, x: int, y: int) -> None:
-        self.config["overlay"]["x"], self.config["overlay"]["y"] = x, y
+    def _save_overlay_settings(self, values: dict) -> None:
+        self.config["overlay"].update(values)
         cfgmod.save_config(self.config)
-        log.info("Overlay-Position gespeichert: %d, %d", x, y)
+        log.info("Overlay-Einstellungen gespeichert: %s", values)
 
     def _ask_start_value(self, first_run: bool = False) -> None:
         if first_run:
@@ -166,14 +167,16 @@ class App:
             if kind == "total":
                 self.overlay.set_total(event[1], flash=event[2])
             elif kind == "status":
-                self.overlay.set_status(event[1])
+                self.overlay.set_status(event[1], event[2])
+            elif kind == "scale":
+                self.overlay.change_scale(event[1])
             elif kind == "toast":
                 self.overlay.toast(event[1])
             elif kind == "set_value":
                 self._ask_start_value()
             elif kind == "move":
                 moving = self.overlay.toggle_move_mode()
-                self.overlay.toast("Overlay mit der Maus ziehen – F10 zum Fixieren" if moving else "Position gespeichert")
+                self.overlay.toast("Ziehen = verschieben · Mausrad/Ecke = Größe · F10 = fertig" if moving else "Position & Größe gespeichert")
             elif kind == "quit":
                 self.shutdown()
                 return
@@ -190,9 +193,9 @@ class App:
         from .hotkeys import register_hotkeys
         from .overlay import Overlay
 
-        self.overlay = Overlay(self.config, self._save_position)
+        self.overlay = Overlay(self.config, self._save_overlay_settings)
         self.overlay.set_total(self.stats.total)
-        self.overlay.set_status(self.detector.status_text())
+        self.overlay.set_status(*self.detector.status())
 
         actions = {
             "increment": self._increment,
@@ -201,6 +204,8 @@ class App:
             "calibrate": self._calibrate,
             "move_overlay": lambda: self.events.put(("move",)),
             "toggle_detection": self._toggle_detection,
+            "bigger": lambda: self.events.put(("scale", +0.1)),
+            "smaller": lambda: self.events.put(("scale", -0.1)),
             "quit": lambda: self.events.put(("quit",)),
         }
         try:

@@ -3,10 +3,12 @@
 Zählt, wie viele Truhen du in Fortnite insgesamt geöffnet hast. Der Zähler aktualisiert sich live und wird als Overlay direkt über dem Spiel angezeigt.
 
 - **Automatische Erkennung** per Bilderkennung: Das Tool erkennt den Truhen-Hinweis und deinen Tastendruck.
-- **Hotkeys** zum Korrigieren: `´` = +1, `ß` = −1
-- **Startwert** setzen: beim ersten Start, jederzeit mit `F6` oder per `--set`
+- **Hotkeys** zum Korrigieren: `F6` = +1, `F7` = −1
+- **Startwert** setzen: beim ersten Start, jederzeit mit `F8` oder per `--set`
 - **Gesamtzahl** wird dauerhaft gespeichert und bleibt auch nach Neustarts erhalten.
-- **Ingame-Overlay**: transparent, immer im Vordergrund und klick-durchlässig. Die Position lässt sich verschieben.
+- **Ingame-Overlay** im eigenen Design: immer im Vordergrund und klick-durchlässig. **Größe und Position sind frei einstellbar.**
+
+![Vorschau des Overlays](docs/overlay_preview.png)
 
 > **Ist das erlaubt?** Das Tool liest **keinen** Spielspeicher, verändert keine Spieldateien und injiziert nichts. Es macht nur Screenshots eines kleinen Bildschirmausschnitts und zeichnet ein eigenes Fenster darüber, genau wie OBS oder das Discord-Overlay.
 
@@ -53,21 +55,44 @@ Läufst du an einer Truhe nur vorbei oder drückst E ohne Hinweis, zählt nichts
 
 | Taste | Funktion |
 |---|---|
-| `´` (links neben Backspace) | **+1 Truhe** |
-| `ß` | **−1 Truhe** (Korrektur) |
-| `F6` | Zählerstand / Startwert manuell setzen |
+| `F6` | **+1 Truhe** |
+| `F7` | **−1 Truhe** (Korrektur) |
+| `F8` | Zählerstand / Startwert manuell setzen |
 | `F9` | Truhen-Hinweis als Vorlage kalibrieren |
-| `F10` | Overlay verschieben (mit der Maus ziehen, nochmal `F10` zum Fixieren) |
+| `F10` | Verschiebe-Modus an/aus: Overlay mit der Maus ziehen, **Größe per Mausrad** oder am Griff unten rechts |
 | `F11` | Auto-Erkennung pausieren/fortsetzen |
+| `Strg+Bild↑` / `Strg+Bild↓` | Overlay **größer / kleiner** (auch mitten im Spiel) |
 | `Strg+Shift+F12` | Programm beenden |
 
 Die Hotkeys funktionieren global, also auch, während Fortnite im Fokus ist.
 
 ### Startwert / Zählerstand setzen
 - **Beim ersten Start** erscheint automatisch ein Eingabefenster.
-- **Jederzeit** öffnet `F6` das Eingabefenster. Zahl eintippen und mit Enter bestätigen. Wechsle bei Bedarf kurz mit Alt+Tab aus dem Spiel.
+- **Jederzeit** öffnet `F8` das Eingabefenster. Zahl eintippen und mit Enter bestätigen. Wechsle bei Bedarf kurz mit Alt+Tab aus dem Spiel.
 - **Per Kommandozeile:** `start.bat --set 250`, alternativ `python run.py --set 250`.
 - Den aktuellen Stand zeigt `python run.py --show` an.
+
+---
+
+## Aussehen & Größe
+
+- **Größe ändern:** Mit `Strg+Bild↑` / `Strg+Bild↓` geht es in 10-%-Schritten von 50 % bis 300 %. Alternativ drückst du `F10` und drehst das Mausrad über dem Overlay oder ziehst am weißen Dreieck unten rechts.
+- **Verschieben:** Drück `F10`, zieh das Overlay an die gewünschte Stelle und drück erneut `F10`.
+- Größe und Position werden gespeichert und bleiben nach einem Neustart erhalten.
+- Bei jeder geöffneten Truhe geht der Deckel des Symbols auf, die Zahl leuchtet grün, und kurz erscheint **+1**.
+- Der Punkt neben „TRUHEN“ zeigt den Status: 🟢 Erkennung aktiv · 🟡 pausiert · 🔴 Problem, zum Beispiel noch keine Vorlage. Bei 🟡 und 🔴 steht der Grund darunter.
+
+Weitere Optionen in `config.json` unter `overlay`:
+
+| Option | Standard | Bedeutung |
+|---|---|---|
+| `scale` | `1.0` | Größe (0.5 – 3.0) |
+| `opacity` | `0.92` | Deckkraft des ganzen Overlays (0.3 – 1.0) |
+| `background` | `true` | `false` = nur Truhe und Zahl mit Schatten, ohne dunkles Panel |
+| `label` | `"Truhen"` | Beschriftung über der Zahl |
+| `color` | `"#FFD34D"` | Akzentfarbe (Gold) |
+| `number_color`, `flash_color` | Weiß, Grün | Farbe der Zahl normal und beim +1 |
+| `panel_color`, `border_color` | Dunkelblau-grau | Hintergrund und Rand des Panels |
 
 ---
 
@@ -93,7 +118,7 @@ Wichtige Optionen:
 | `detection.match_threshold` | `0.75` | Wie genau die Vorlage passen muss: höher = strenger, niedriger = toleranter |
 | `detection.brightness_threshold` | `200` | Ab welcher Helligkeit ein Pixel als Text zählt |
 | `detection.monitor` | `1` | Bildschirm, auf dem Fortnite läuft |
-| `overlay.font_size`, `overlay.color`, `overlay.label` | | Aussehen des Overlays |
+| `overlay.*` | | Aussehen & Größe (siehe oben) |
 
 Nach Änderungen das Programm neu starten.
 
@@ -105,12 +130,12 @@ Nach Änderungen das Programm neu starten.
 |---|---|
 | Overlay ist im Spiel nicht sichtbar | Fortnite auf **„Rahmenloses Fenster“** stellen |
 | Hotkeys reagieren nicht | `start.bat` per Rechtsklick **als Administrator** starten |
-| `´` reagiert nicht | `´` ist eine Tottaste. Trag in `config.json` bei `"increment"` den Scan-Code `13` ein oder nimm eine andere Taste |
+| F6/F7 sind schon anders belegt | In `config.json` unter `hotkeys` andere Tasten eintragen, z. B. `"increment": "f2"` |
 | Truhen werden nicht gezählt | Neu kalibrieren (`F9`), `match_threshold` z. B. auf `0.65` senken, `interact_key` prüfen |
-| Es wird zu viel gezählt | `match_threshold` z. B. auf `0.85` erhöhen. Mit `ß` korrigieren |
+| Es wird zu viel gezählt | `match_threshold` z. B. auf `0.85` erhöhen. Mit `F7` korrigieren |
 | Andere Auflösung / mehrere Monitore | `detection.monitor` und `detection.region` anpassen, dann neu kalibrieren |
 
-Wer die Interaktion auf die Maus (z. B. das Mausrad) gelegt hat, zählt mit den Hotkeys. Die Erkennung wertet nur Tastaturtasten aus.
+Wer die Interaktion auf die Maus (z. B. das Mausrad) gelegt hat, zählt mit `F6`/`F7`. Die Erkennung wertet nur Tastaturtasten aus.
 
 ---
 

@@ -9,16 +9,20 @@ from typing import Any
 
 APP_NAME = "FortniteChestCounter"
 
+CONFIG_VERSION = 2
+
 DEFAULT_CONFIG: dict[str, Any] = {
-    # Tastennamen der "keyboard"-Bibliothek oder Scan-Codes (Zahl).
-    # Deutsche Tastatur: "´" (Taste links neben Backspace) = +1, "ß" = -1.
+    "config_version": CONFIG_VERSION,
+    # Tastennamen der "keyboard"-Bibliothek (z. B. "f6", "ctrl+k") oder Scan-Codes (Zahl).
     "hotkeys": {
-        "increment": "´",
-        "decrement": "ß",
-        "set_value": "f6",
+        "increment": "f6",
+        "decrement": "f7",
+        "set_value": "f8",
         "calibrate": "f9",
         "move_overlay": "f10",
         "toggle_detection": "f11",
+        "bigger": "ctrl+page up",
+        "smaller": "ctrl+page down",
         "quit": "ctrl+shift+f12",
     },
     # Taste, mit der du in Fortnite interagierst (Truhe öffnen)
@@ -42,14 +46,54 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "overlay": {
         "x": 40,
         "y": 40,
+        # Größe des Overlays (1.0 = 100 %). Änderbar mit Strg+Bild↑/↓ oder Mausrad im F10-Modus.
+        "scale": 1.0,
+        # Deckkraft des ganzen Overlays (0.3 – 1.0)
+        "opacity": 0.92,
+        # false = nur Text mit Schatten, ohne Hintergrund-Panel
+        "background": True,
         "font_family": "Segoe UI",
         "font_size": 28,
-        "color": "#FFD34D",
-        "flash_color": "#5CFF7A",
-        "shadow_color": "#000000",
         "label": "Truhen",
+        "color": "#FFD34D",          # Akzentfarbe (Gold)
+        "number_color": "#FFFFFF",
+        "flash_color": "#5CFF7A",
+        "panel_color": "#141722",
+        "border_color": "#2C3248",
+        "muted_color": "#9AA0B4",
+        "shadow_color": "#000000",
     },
 }
+
+SCALE_MIN, SCALE_MAX = 0.5, 3.0
+
+
+def clamp_scale(value: float) -> float:
+    """Begrenzt die Overlay-Größe auf SCALE_MIN..SCALE_MAX."""
+    return round(min(SCALE_MAX, max(SCALE_MIN, float(value))), 2)
+
+
+def format_number(value: int) -> str:
+    """1234 → '1.234' (deutsche Tausenderpunkte)."""
+    return f"{value:,}".replace(",", ".")
+
+# Frühere Standard-Hotkeys → neue Standard-Hotkeys (nur ersetzen, wenn der Nutzer sie nicht geändert hat)
+_HOTKEY_MIGRATIONS = {
+    1: {"increment": ("´", "f6"), "decrement": ("ß", "f7"), "set_value": ("f6", "f8")},
+}
+
+
+def _migrate(user: dict[str, Any]) -> dict[str, Any]:
+    version = int(user.get("config_version", 1)) if user else CONFIG_VERSION
+    hotkeys = user.get("hotkeys")
+    while version < CONFIG_VERSION:
+        if isinstance(hotkeys, dict):
+            for name, (old, new) in _HOTKEY_MIGRATIONS.get(version, {}).items():
+                if hotkeys.get(name) == old:
+                    hotkeys[name] = new
+        version += 1
+    user["config_version"] = CONFIG_VERSION
+    return user
 
 
 def data_dir() -> Path:
@@ -88,7 +132,7 @@ def load_config(path: Path | None = None) -> dict[str, Any]:
             # Kaputte Datei sichern statt sie stillschweigend zu überschreiben
             path.replace(path.with_suffix(".broken.json"))
             user = {}
-    config = _deep_merge(DEFAULT_CONFIG, user)
+    config = _deep_merge(DEFAULT_CONFIG, _migrate(user))
     save_config(config, path)
     return config
 
